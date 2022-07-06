@@ -215,6 +215,7 @@ if __name__ == "__main__":
     print(f"Loading model from {args.ckpt}")
     ckpt, _ = find_model(args.ckpt)
     if args.ckpt in ['ir_face']:
+        #-------------------------------- For StyleGanADA
         class G_Wrapper(nn.Module):
             def __init__(self, G, device=device):
                 super().__init__()
@@ -273,17 +274,15 @@ if __name__ == "__main__":
         import dnnlib
         import legacy
         from torch_utils import misc
-        G_init_dict = mmcv.load('/home/anhvth8/gitprojects/stylegan2-ada-pytorch/G_init_dict.pkl')
+        G_init_dict = mmcv.load('/home/anhvth8/gitprojects/stylegan2-ada-pytorch/configs/ffhq256_g_config.pkl')
         G = dnnlib.util.construct_class_by_name(**G_init_dict['G_kwargs'], 
             **G_init_dict['common_kwargs']).train().requires_grad_(False).to(device) # subclass of torch.nn.Module
         with dnnlib.util.open_url('pretrained/ir_face.pkl') as f:
             resume_data = legacy.load_network_pkl(f)
-        # import ipdb; ipdb.set_trace()
         for name, module in [('G_ema', G)]:
             misc.copy_params_and_buffers(resume_data[name], module, require_all=False)
         generator = G_Wrapper(G).requires_grad_(False)
     else:
-        # import ipdb; ipdb.set_trace()
         generator.load_state_dict(ckpt["g_ema"], strict=False)  # NOTE: We load g_ema as generator since G is frozen!
     try:  # Restore from full checkpoint, including the optimizer
         if args.load_G_only:  # Don't attempt to load GANgealing checkpoint; jump straight to the except block

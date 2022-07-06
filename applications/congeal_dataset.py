@@ -50,9 +50,12 @@ def apply_congealing(args, dataset, stn, stn_full, out_path, device, rank, n_pro
                 continue
             # The scale of the similarity transform can be extracted from our affine matrix
             # by taking the square-root of its determinant:
+            device = M.device
             M = torch.cat([M, one_hot], 1)
-            scale = torch.det(M).sqrt_()
+            scale = torch.det(M.cpu()).sqrt_().to(device)
             too_low_res = (scale.item() * min(w, h)) < args.min_effective_resolution
+            if too_low_res:
+                print('To low, ', (scale.item() * min(w, h)) , args.min_effective_resolution)
             # We don't want to include images that can only be aligned by extrapolating a significant number of pixels
             # beyond the image boundary:
             if not (too_low_res or oob.item()):

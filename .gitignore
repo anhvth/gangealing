@@ -148,3 +148,12 @@ cython_debug/
 
 .idea
 .DS_Store
+data/*
+
+
+pretrained
+visuals
+results
+*.mp4
+*.png
+*.jpg

@@ -8,7 +8,7 @@ from utils.distributed import primary, synchronize
 
 # These are the pre-trained GANgealing checkpoints we currently have available for download (and the SSL VGG network)
 VALID_MODELS = {'bicycle', 'car', 'cat', 'cat_ssl_mix6', 'celeba', 'cub', 'dog', 'horse', 'tvmonitor',
-                'simclr_vgg_phase150'}
+                'simclr_vgg_phase150', 'ir_face'}
 
 # These are the default testing hyperparameters which we used for all models. They will be automatically
 # loaded into the argparser whenever you use one of our pre-trained models. If you want to change any of these,
@@ -26,6 +26,7 @@ PRETRAINED_TEST_HYPERPARAMS = \
         'dog':           {'padding_mode': 'border',    'iters': 3},
         'horse':         {'padding_mode': 'reflection', 'iters': 3, 'num_heads': 4},
         'tvmonitor':     {'padding_mode': 'reflection', 'iters': 3},
+        'ir_face':       {'padding_mode': 'border',    'iters': 3},
     }
 
 
@@ -37,6 +38,11 @@ def find_model(model_name):
         using_pretrained_model = False
         return torch.load(model_name, map_location=lambda storage, loc: storage), using_pretrained_model
 
+_download_url = download_url
+def download_url(web_path, name):
+    print('Please manualy download this file if not success....')
+    print(f'Download {web_path}')
+    return _download_url(web_path, name)
 
 def download_model(model_name, online_prefix='pretrained'):
     assert model_name in VALID_MODELS

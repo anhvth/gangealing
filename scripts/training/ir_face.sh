@@ -3,6 +3,19 @@
 # for a total batch size of 40 across all gpus)
 
 
+PYTHONWARNINGS="ignore" torchrun --nproc_per_node=4 train.py \
+--ckpt ir_face --padding_mode border --tv_weight 2500 \
+--vis_every 5000 --ckpt_every 50000 --iter 600000  --loss_fn lpips --exp-name ir_face --batch 10
+
+
+
+
+
+PYTHONWARNINGS="ignore" torchrun --nproc_per_node=1 train.py \
+--ckpt ir_face --padding_mode border --tv_weight 2500 \
+--vis_every 5000 --ckpt_every 50000 --iter 1500000  --loss_fn lpips --exp-name ir_face --batch 10 --debug
+
+
 
 
 

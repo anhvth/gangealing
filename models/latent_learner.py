@@ -81,7 +81,7 @@ class DirectionInterpolator(nn.Module):
         with torch.no_grad():
             self.coefficients.copy_(initializer)
 
-
+from tqdm import tqdm
 @torch.no_grad()
 def kmeans_plusplus(num_heads, num_latent, G, loss_fn, inject_index=6, batch_size=100):
     num_w_per_gpu = num_latent // get_world_size()
@@ -100,7 +100,7 @@ def kmeans_plusplus(num_heads, num_latent, G, loss_fn, inject_index=6, batch_siz
     initial_w_idx = rank0_to_all(initial_w_idx).item()  # Distribute the rank-0 sample
     dists = []
     centroid_idx = [initial_w_idx]
-    for _ in range(num_heads - 1):
+    for _ in tqdm(range(num_heads - 1)):
         # Recompute the current image of interest in each process:
         G_w, _ = G([batch_w[centroid_idx[-1]].unsqueeze(0).to('cuda'), mean_w], input_is_latent=True, randomize_noise=True, inject_index=inject_index)
         # Compute distance between the previous centroid and all other data points:

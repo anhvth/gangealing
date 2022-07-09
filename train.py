@@ -258,12 +258,16 @@ if __name__ == "__main__":
                         return ws
                 else:
                     if len(styles) == 1:
+                        assert styles[0].shape[1] == 14 # 14 latent layer
                         ws = styles[0]
                     else:
+                        w1 = self.G.mapping(styles[0], c = None)[:,:inject_index]
+                        w2 = self.G.mapping(styles[1], c = None)[:, inject_index:]
+                        ws = torch.cat([w1, w2], 1)
+                    if mapping_only:
                         import ipdb; ipdb.set_trace()
-                if isinstance(ws, list):
-                    import ipdb; ipdb.set_trace()
                 img = self.G.synthesis(ws)
+
                 if return_latents:
                     return img, ws
                 else:
@@ -296,7 +300,7 @@ if __name__ == "__main__":
         ll_sched.load_state_dict(ckpt["ll_sched"])
     except KeyError:  # Initialize the target mode c (ll)
         print('Only G_EMA has been loaded from checkpoint. Other nets are random!')
-        n_pca = 1000 if args.debug else 1000000
+        n_pca = 1000 #if args.debug else 1000000
         with torch.no_grad():
             batch_w = generator.batch_latent(n_pca // get_world_size())
         batch_w = all_gather(batch_w)

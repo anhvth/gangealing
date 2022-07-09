@@ -382,7 +382,18 @@ class ComposedSTN(nn.Module):
                            f'stns.{i}.warp_head.rebias'])
         ignore = set(ignore)
         filtered = {k: v for k, v in state_dict.items() if k not in ignore}
-        return super().load_state_dict(filtered, False)
+        # import ipdb; ipdb.set_trace()
+        # return super().load_state_dict(filtered, False)
+        if not strict:
+            cst = self.state_dict()
+            tobe_remove_k = []
+            for k in filtered:
+                if k in cst:
+                    if not cst[k].shape == filtered[k].shape:
+                        tobe_remove_k.append(k)
+            for k in tobe_remove_k:
+                del filtered[k]
+        return super().load_state_dict(filtered,  strict)
 
 
 class SpatialTransformer(nn.Module):

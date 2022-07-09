@@ -523,6 +523,7 @@ class Generator(nn.Module):
         noise=None,
         randomize_noise=True,
     ):
+        # import ipdb; ipdb.set_trace()
         if not input_is_latent:
             styles = [self.style(s) for s in styles]
             if mapping_only:
@@ -546,7 +547,6 @@ class Generator(nn.Module):
 
             if styles[0].ndim < 3:
                 latent = styles[0].unsqueeze(1).repeat(1, inject_index, 1)
-
             else:
                 latent = styles[0]
 
@@ -554,10 +554,11 @@ class Generator(nn.Module):
             if inject_index is None:
                 inject_index = random.randint(1, self.n_latent - 1)
 
-            latent = styles[0].unsqueeze(1).repeat(1, inject_index, 1)
+            latent1 = styles[0].unsqueeze(1).repeat(1, inject_index, 1)
             latent2 = styles[1].unsqueeze(1).repeat(1, self.n_latent - inject_index, 1)
 
-            latent = torch.cat([latent, latent2], 1)
+            latent = torch.cat([latent1, latent2], 1)
+            # import ipdb; ipdb.set_trace()
 
         out = self.input(latent)
         out = self.conv1(out, latent[:, 0], noise=noise[0])

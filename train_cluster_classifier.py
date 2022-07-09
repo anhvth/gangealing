@@ -178,8 +178,85 @@ if __name__ == "__main__":
     # Load pre-trained STN, Generator and LL (required):
     print(f"Loading model from {args.ckpt}")
     ckpt = torch.load(args.ckpt, map_location=lambda storage, loc: storage)
-    generator.load_state_dict(ckpt["g_ema"])
+    # generator.load_state_dict(ckpt["g_ema"])
+    # import ipdb; ipdb.set_trace()
+    if 'ir_face' in args.ckpt:
+        #-------------------------------- For StyleGanADA
+        class G_Wrapper(nn.Module):
+            def __init__(self, G, device=device):
+                super().__init__()
+                self.G = G
+                self.n_latent = G.num_ws
+                self.style_dim = G.z_dim
+                self.device = device
+
+            def to(self, device):
+                self.device = device
+                return super().to(device)
+            @torch.no_grad()
+            def batch_latent(self, n_latent):
+                latent_in = torch.randn(
+                    n_latent, self.style_dim, device=self.device
+                )
+                latent = self.G.mapping(latent_in, c=None)
+                # import ipdb; ipdb.set_trace()
+                return latent.mean(1)
+
+            def forward(self,styles,
+                        mapping_only=False,
+                        return_latents=False,
+                        inject_index=None,
+                        truncation=1,
+                        truncation_latent=None,
+                        input_is_latent=False,
+                        noise=None,
+                        randomize_noise=True):
+                if not input_is_latent:
+                    if len(styles) == 1:
+                        styles = styles[0]
+                    else:
+                        import ipdb; ipdb.set_trace()
+                    if self.device != styles.device:
+                        self.to(styles.device)
+                        
+                    ws = self.G.mapping(styles, c=None)
+                    if mapping_only:
+                        return ws
+                else:
+                    if len(styles) == 1:
+                        assert styles[0].shape[1] == 14 # 14 latent layer
+                        ws = styles[0]
+                    else:
+                        w1 = self.G.mapping(styles[0], c = None)[:,:inject_index]
+                        w2 = self.G.mapping(styles[1], c = None)[:, inject_index:]
+                        ws = torch.cat([w1, w2], 1)
+                    if mapping_only:
+                        import ipdb; ipdb.set_trace()
+                img = self.G.synthesis(ws)
+
+                if return_latents:
+                    return img, ws
+                else:
+                    return img, None
+        import mmcv
+        import sys
+        sys.path.insert(0, '/home/anhvth8/gitprojects/stylegan2-ada-pytorch')
+        import dnnlib
+        import legacy
+        from torch_utils import misc
+        G_init_dict = mmcv.load('/home/anhvth8/gitprojects/stylegan2-ada-pytorch/configs/ffhq256_g_config.pkl')
+        G = dnnlib.util.construct_class_by_name(**G_init_dict['G_kwargs'], 
+            **G_init_dict['common_kwargs']).train().requires_grad_(False).to(device) # subclass of torch.nn.Module
+        with dnnlib.util.open_url('pretrained/ir_face.pkl') as f:
+            resume_data = legacy.load_network_pkl(f)
+        for name, module in [('G_ema', G)]:
+            misc.copy_params_and_buffers(resume_data[name], module, require_all=False)
+        generator = G_Wrapper(G).requires_grad_(False)
+    else:
+        generator.load_state_dict(ckpt["g_ema"], strict=False)  # NOTE: We load g_ema as generator since G is frozen!
+
     t_ema.load_state_dict(ckpt["t_ema"])
+    # import ipdb; ipdb.set_trace()
     ll.load_state_dict(ckpt["ll"])
     # We initialize the classifier with the similarity STN's weights to speed-up training:
     assert args.transform[0] == 'similarity'

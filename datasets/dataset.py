@@ -11,6 +11,7 @@ _transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.
 
 class MultiResolutionDataset(Dataset):
     def __init__(self, path, transform=_transform, resolution=256, return_indices=False):
+        assert path is not None
         self.env = lmdb.open(
             path,
             max_readers=32,

@@ -466,7 +466,6 @@ class SpatialTransformer(nn.Module):
         self.final_conv = ConvLayer(in_channel, channels[4], 3)
         if not self.is_flow:
             self.final_linear = EqualLinear(channels[4] * 4 * 4, channels[4], activation='fused_lrelu')
-
         if transform == 'similarity':
             warp_class = SimilarityHead
             in_shape = channels[4]

@@ -16,7 +16,7 @@ from applications.flow_scores import filter_dataset
 from utils.distributed import setup_distributed, primary, get_rank, all_gatherv, synchronize, get_world_size
 from datasets import MultiResolutionDataset
 import os
-
+from loguru import logger
 
 def apply_congealing(args, dataset, stn, stn_full, out_path, device, rank, n_processes, **stn_args):
 
@@ -27,7 +27,7 @@ def apply_congealing(args, dataset, stn, stn_full, out_path, device, rank, n_pro
 
     total = 0
     prefix = chr(ord('a') + rank)
-    print(f'({rank}) Using prefix {prefix}')
+    logger.info(f'({rank=}) Using prefix {prefix}')
     pbar = tqdm if rank == 0 else lambda x: x
     indices = torch.arange(rank, len(dataset), n_processes)
     one_hot = torch.tensor([[[0, 0, 1]]], dtype=torch.float, device=device)
@@ -38,11 +38,13 @@ def apply_congealing(args, dataset, stn, stn_full, out_path, device, rank, n_pro
             w, h = x.size
             size = max(w, h)
             x_big = prepro(border_pad(x, size, resize=False, to_pil=False))  # (1, C, size, size)
+
             x_in = prepro(border_pad(x, args.flow_size, to_pil=False))  # (1, C, flow_size, flow_size)
             x_in, flip_indices, warp_policy = determine_flips(args, stn_full, None, x_in)
             x_big = torch.where(flip_indices.view(-1, 1, 1, 1), x_big.flip(3,), x_big)
             image_bounds = torch.tensor([[h, w]], dtype=torch.float, device='cuda')
             try:
+                
                 aligned, M, oob = stn(x_in, return_flow=True, return_out_of_bounds=True, input_img_for_sampling=x_big,
                                       output_resolution=args.output_resolution, image_bounds=image_bounds, **stn_args)
             except RuntimeError:
@@ -54,14 +56,18 @@ def apply_congealing(args, dataset, stn, stn_full, out_path, device, rank, n_pro
             M = torch.cat([M, one_hot], 1)
             scale = torch.det(M.cpu()).sqrt_().to(device)
             too_low_res = (scale.item() * min(w, h)) < args.min_effective_resolution
-            if too_low_res:
-                print('To low, ', (scale.item() * min(w, h)) , args.min_effective_resolution)
-            # We don't want to include images that can only be aligned by extrapolating a significant number of pixels
             # beyond the image boundary:
             if not (too_low_res or oob.item()):
                 used_indices.append(i)
                 write_image_batch(aligned, out_path, start_index=total, prefix=prefix)
                 total += aligned.size(0)
+            else:
+                used_indices.append(i)
+                out_path = out_path.replace('imagefolder', 'ignorefolder')
+                os.makedirs(out_path, exist_ok=1)
+                write_image_batch(aligned, out_path, start_index=total, prefix=prefix)
+                total += aligned.size(0)
+                logger.info(f'Ignore becuase {too_low_res=}, {oob.item()=}')
     print(f'({rank}) Saved {total} images')
     used_indices = torch.stack(used_indices).to(device)
     return used_indices
@@ -77,7 +83,7 @@ def write_image_batch(images, out_path, start_index=0, prefix=''):
     ndarr = images.mul(255).add_(0.5).clamp_(0, 255).permute(0, 2, 3, 1).to('cpu', torch.uint8).numpy()
     for i in range(ndarr.shape[0]):
         index = i + start_index
-        Image.fromarray(ndarr[i]).save(f'{out_path}/{prefix}{index:07}.png')
+        Image.fromarray(ndarr[i]).save(f'{out_path}/{prefix}{index:07}.jpg')
 
 
 def align_and_filter_dataset(args, t):
@@ -103,7 +109,7 @@ def align_and_filter_dataset(args, t):
     used_indices = all_gatherv(used_indices)
     # Step 2: Create an lmdb from temp_folder:
     if primary():
-        create_dataset(args.out, temp_folder, size=args.output_resolution, format='png')
+        create_dataset(args.out, temp_folder, size=args.output_resolution, format='jpg')
         used_indices = used_indices.sort().values.cpu()
         print(f'Saving indices of images (size={used_indices.size(0)})')
         torch.save(used_indices, f'{args.out}/dataset_indices.pt')

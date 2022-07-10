@@ -396,14 +396,14 @@ if __name__ == "__main__":
     parser.add_argument(
         "--n_worker",
         type=int,
-        default=8,
+        default=40,
         help="number of workers for preparing dataset",
     )
     parser.add_argument(
         "--format",
         type=str,
         choices=['png', 'jpeg'],
-        default='png',
+        default='jpeg',
         help="format to store images in the database",
     )
     parser.add_argument("--pad", choices=['zero', 'border', 'center', 'resize_small_side', 'none'], default='center',

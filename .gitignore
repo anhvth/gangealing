@@ -148,3 +148,7 @@ cython_debug/
 
 .idea
 .DS_Store
+data/*
+*.pt
+*.pkl
+*.pth
